@@ -1,12 +1,3 @@
-# from harvesttext import HarvestText
-
-# def clean(text):
-#     ht0 = HarvestText()
-#     result = ht0.clean_text(text, norm_html=True)
-#     return result
-
-
-
 # -*- coding: utf-8 -*-
 from goose3 import Goose
 from goose3.text import StopWordsChinese

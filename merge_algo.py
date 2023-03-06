@@ -1,4 +1,4 @@
-from harvesttext import HarvestText
+from HarvestText.harvesttext.harvesttext import HarvestText
 
 def merge(text, num_paras=3):
     ht0 = HarvestText()

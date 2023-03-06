@@ -1,10 +1,9 @@
 import gradio as gr
+import openai
 from merge_algo import merge
 from clean import clean
 
-title = "自动分段"
-
-description = "输入一长段文本，输入分段数量，点击submit按钮！"
+openai.api_key = "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"
 
 examples = [
     ["""备受社会关注的湖南常德滴滴司机遇害案，将于1月3日9时许，在汉寿县人民法院开庭审理。此前，犯罪嫌疑人、19岁大学生杨某淇被鉴定为作案时患有抑郁症，为“有限定刑事责任能力”。
@@ -15,11 +14,6 @@ examples = [
     ]
 
 
-# 预测函数
-def custom_predict(context, number):
-    corpus = merge(context, num_paras=number)
-    return corpus
-
 def clean_text(context):
     corpus = clean(context)
     return corpus
@@ -28,14 +22,97 @@ def clean_text(context):
 def clear_input():
     return "", "", "", ""
 
+# 预测函数
+def custom_predict(context):
+    response = openai.ChatCompletion.create(
+           model='gpt-3.5-turbo',
+           messages=[
+           {"role": "user", "content": context}],
+    )
+    return response.choices[0].message.content.strip()
+
+def picture_predict(context):
+    image_resp = openai.Image.create(prompt=context, n=1, size="512x512")
+    result=[item.url for item in image_resp.data]
+    return result[0]
+
+def audio_transcription(file_path):
+    with open(file_path, "rb") as fr:
+        transcript = openai.Audio.transcribe("whisper-1", fr)
+    return transcript.text
+
+def classify(text):
+    '''
+    情感分类
+    '''
+    moderation_resp = openai.Moderation.create(input=text)
+    return str(moderation_resp)
+
 # 构建Blocks上下文
 with gr.Blocks() as demo:
     with gr.Tabs():
+        with gr.TabItem("chatgpt-3.5-turbo聊天机器人"):
+            gr.Markdown("使用chatgpt-3.5-turbo进行问答！")
+            with gr.Column():    # 列排列
+                context = gr.Textbox(label="文本内容：")
+            with gr.Row():
+                submit = gr.Button("submit")
+            with gr.Column():    # 列排列
+                answer = gr.Textbox(label="answer")
+            # 绑定submit点击函数
+            submit.click(fn=custom_predict, inputs=[context], outputs=[answer])
+        with gr.TabItem("语音识别"):
+            gr.Markdown("使用chatgpt-3.5-turbo进行语音识别！")
+            with gr.Column():    # 列排列
+                video = gr.Video(label="上传视频")
+            with gr.Row():
+                submit = gr.Button("submit")
+            with gr.Column():    # 列排列
+                answer = gr.Textbox(label="answer")
+            # 绑定submit点击函数
+            submit.click(fn=audio_transcription, inputs=[video], outputs=[answer])
+            
+        with gr.TabItem("文本色恐暴识别"):
+            gr.Markdown('''hate：根据种族，性别，种族，宗教，国籍，性取向，残疾地位或种姓来表达，煽动或促进仇恨的内容，   
+                         hate/threatening:令人讨厌的内容，包括暴力或对目标群体的严重伤害。   
+                         self-harm：促进，鼓励或描绘自我伤害行为的内容，例如自杀，切割和饮食失调。   
+                         sexual：内容旨在引起性兴奋，例如对性活动的描述或促进性服务（不包括性教育和健康）。   
+                         sexual/minors：性内容，其中包括一个18岁以下的个人。   
+                         violence：促进或荣耀暴力或庆祝他人的苦难或屈辱的内容。   
+                         violence/graphic：在极端图形细节中描述死亡，暴力或严重身体伤害的暴力内容。   
+                        ''')
+            with gr.Column():    # 列排列
+                context = gr.Textbox(label="文本内容：")
+            with gr.Row():
+                submit = gr.Button("submit")
+            with gr.Column():    # 列排列
+                answer = gr.Textbox(label="answer")
+            # 绑定submit点击函数
+            submit.click(fn=classify, inputs=[context], outputs=[answer])
+        with gr.TabItem("chatgpt-3.5-图像生成"):
+            gr.Markdown("使用chatgpt-3.5-turbo进行图像生成！")
+            with gr.Column(variant="panel"):
+                with gr.Row(variant="compact"):
+                    text = gr.Textbox(
+                        label="Enter your prompt",
+                        show_label=False,
+                        max_lines=1,
+                        placeholder="Enter your prompt",
+                    ).style(
+                        container=False,
+                    )
+                    btn = gr.Button("Generate image").style(full_width=False)
+
+                gallery = gr.Gallery(
+                    label="Generated images", show_label=False, elem_id="gallery"
+                ).style(grid=[2], height="auto")
+            
+            btn.click(picture_predict, text, gallery)
         with gr.TabItem("自动分段"):
-            gr.Markdown("输入长文本后和想要分的段落数量，点击submit按钮，可以自动分段，赶快试试吧！")
+            gr.Markdown("输入长文本后和threshold，点击submit按钮，可以自动分段，赶快试试吧！")
             with gr.Column():    # 列排列
                 context = gr.Textbox(label="文本内容")
-                number = gr.Textbox(label="分段数量")
+                number = gr.Textbox(label="threshold")
             with gr.Row():       # 行排列
                 clear = gr.Button("clear")
                 submit = gr.Button("submit")
